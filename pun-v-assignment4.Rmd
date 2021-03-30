@@ -1,0 +1,636 @@
+---
+title: "pun-v-assignment4"
+author: "Vincent Pun"
+date: "3/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This dataset summarizes 77 different brands of breakfast cereals, including calories, proteins, fats, and so on, and gives a 'rating' that indicates the overall nutritional value of the cereal.
+
+```{r Load Data}
+#LOAD DATA----
+
+# Multidimensional Visualization Exercise: Breakfast Cereals
+# 
+# Description of the original data set from the American Statistical 
+# Association (ASA): # http://stat-computing.org/dataexpo/1993.html
+# 
+# Install the library lgrdata for example datasets
+# which includes most of the variables from the original ASA example 
+# Documentation at
+# http://search.r-project.org/R/library/lgrdata/html/cereals.html
+
+library(lgrdata)
+
+#https://www.rdocumentation.org/packages/lgrdata/versions/0.1.1/topics/cereals
+data(cereals)
+
+```
+
+```{r Data Preparation}
+
+#DATA PREPARATION----
+
+#1----
+# ignore the ratings column because it is undocumented
+#double Health rating of the cereal (unknown calculation method).
+cerealsall = cereals[,1:ncol(cereals)-1]
+
+names(cerealsall)
+
+
+# 2) use valid lowercase variable names---- 
+names(cerealsall) = c("cereal","manufacturer","coldhot",
+    "calories","protein","fat","sodium","fiber","carbo",
+    "sugars","potass","vitamins")
+
+#Summary
+dim(cerealsall)
+str(cerealsall)
+print(summary(cerealsall)) 
+```
+
+
+```{r Subsets of Cereals}
+#3) Subset of cereals----
+
+# To simplify the problem, we could consider working with a 
+# subset of cereals, such as only Kelloggs (manufacturer == "K") 
+# and/or General Mills (manufacturer == "G")
+# We do not do that here
+
+# cereals with complete data
+cerealscomplete = cerealsall[complete.cases(cerealsall),]
+print(summary(cerealscomplete)) 
+
+# only one hot cereal remaining, so focus on cold cereals 
+#only C
+#remove column 3 (coldhot)
+cerealswork = 
+    cerealscomplete[(cerealscomplete$coldhot == "C"),c(1,2,4:12)]
+print(summary(cerealswork))  
+
+```
+
+
+```{r Rename observations}
+str(cerealswork)
+cerealswork
+# Set max 8-character cereal names for annotation of visualizations
+#Manually create abbreviation for each observation (name column)
+cerealswork$name = c("100%Bran","100%NBrn","AllBran",                              
+    "AllBranX","ACCherio","AplJacks",                           
+    "Basic4",  "BranChex","BranFlak",                           
+    "CapNCrun","Cheerios","CinTCrun",                 
+    "Clusters","CocoPuff","CornChex",                             
+    "CornFlak","CornPops","ContChoc",                         
+    "COatBran","Crispix","CrispyWR",                
+    "DbleChex","FrotLoop","FrosFlak",                        
+    "FrosMWht","FFDWOats","FrutBran",                         
+    "FrutPebb","GoldCrsp","GoldGram",                        
+    "GNutsFlk","GrpeNuts","GGranPec",                    
+    "HonyGOhs","HonyNChr","Honycomb",                            
+    "JstRCrun","JstRFNut","Kix",                                   
+    "Life","LkCharms","MusliRDA",
+    "MusliRPP","MuslixCB","MGrnCher",                  
+    "NutHonCr","NutGARai","NutgranW",                     
+    "OatRaCrp","PstNRBrn","Prodct19",                            
+    "PuffRice","PuffWhet","QuakOatS",                    
+    "RaisBran","RaisNBrn","RaisSqur",                        
+    "RiceChex","RiceKris","ShrdWeat",                        
+    "ShrdWBrn","ShrdWSSz","Smacks",                               
+    "SpecialK","StrwFWht","TotCornF",                     
+    "TotRBran","TotWGran","Triples",                               
+    "Trix","WhetChex","Wheaties","WhetHGld")
+
+```
+
+
+```{r}
+
+# check the abbreviations (cereal vs name)
+cat("\nName of Cereal (Abbreviation):\n")
+for (i in 1:nrow(cerealswork)) 
+    cat(cerealswork$cereal[i]," (",cerealswork$name[i],")\n", sep = "")
+
+print(summary(cerealswork))  
+
+
+```
+
+***EDA***
+```{r EDA}
+
+#EDA----
+
+library(DT)
+library(dplyr)
+
+unique(cerealswork$manufacturer)
+
+#https://www.mrbreakfast.com/cereal_list_by_company.asp
+#N = Nabisco
+#Q = Quaker Oats
+#K = Kelloggs
+#G = General Mills
+#R = Ralston
+#P = Post
+#A = A_HomestatFarm
+cerealswork$manufacturername <- recode(cerealswork$manufacturer,"N" = "Nabisco","Q" = "Quaker_Oats", "K" = "Kelloggs", "G" = "General Mills", "R" = "Ralston","P" = "Post", "A" = "A_HomestatFarm")
+
+datatable(data = cerealswork,
+          rownames = FALSE,
+          filter = "top",
+          options = list(autoWidth = TRUE))
+
+write.csv(cerealswork, file = "0_cerealswork.csv")
+```
+
+```{r Univariate EDA - geom_bar}
+
+#identify dominant players in the market (Kelloggs and General Mills)
+library(ggplot2)
+
+g <- ggplot(cerealswork, aes(y = manufacturername))
+g + geom_bar()
+```
+
+```{r Bivariate EDA - Calories}
+
+#Histogram - Fiber
+
+cerealswork %>% 
+  ggplot(aes(x = fiber, fill = manufacturername)) +
+    geom_histogram() +
+   scale_x_continuous(name = "Fiber (grams)") +
+    scale_y_continuous(name = "Count", limits = c(0, 11), breaks = seq(0, 11, 2)) +
+    labs(fill = "Manufacturer", title = "Histogram - Fiber") +
+    theme_minimal()
+
+```
+```{r Correlation Plot}
+
+##GGally correlation plot to identify interesting variable relationships
+library(GGally) #https://briatte.github.io/ggcorr/
+
+ggcorr(cerealswork, geom = "blank", label = TRUE, hjust = 0.75) +
+  geom_point(size = 10, aes(color = coefficient > 0, alpha = abs(coefficient) > 0.4)) +
+  scale_alpha_manual(values = c("TRUE" = 0.25, "FALSE" = 0)) +
+  guides(color = FALSE, alpha = FALSE)
+
+```
+
+```{r Corrplot - hierarchical clustering order}
+
+#correlation plot with hierarchical clustering ordering
+library(corrplot)
+corrplot(cor(cerealswork[,3:11]),order='hclust', tl.cex = .9, tl.col = 'darkblue', addrect = 4, hclust.method = "complete")
+
+```
+
+```{r Bivariate EDA}
+#Scatterplot - Carbs and Sugars
+ggplot(cerealswork, aes(x=carbo, y=sugars, color=manufacturername)) + geom_point() + theme(legend.position=c(0,1), legend.justification=c(0,1)) + labs(color = "Manufacturer", title = "Scatterplot - Carbs and Sugar")
+
+#Scatterplot - potass and fiber
+ggplot(cerealswork, aes(x=potass, y=fiber, color=manufacturername)) + geom_point() + theme(legend.position=c(0,1), legend.justification=c(0,1)) + labs(color = "Manufacturer", title = "Scatterplot - Potassium and Fiber")
+
+#Scatterplot - potass and fiber
+ggplot(cerealswork, aes(x=potass, y=fiber, color=manufacturername)) + 
+  labs(color = "Manufacturer", title = "Scatterplot - Potassium and Fiber")+
+  geom_point(shape=1) +
+    scale_colour_hue(l=50) + 
+    geom_smooth(method=lm,se=FALSE)
+```
+
+```{r Skewness Kurtosis}
+
+library(moments)
+
+
+listnum <- c("calories","protein","fat","sodium","fiber","carbo","sugars","potass","vitamins")
+
+for (i in listnum){
+  print(paste(i,"  ",skewness(cerealswork[[i]])))
+}
+
+str(cerealswork)
+```
+
+Customers who are health conscious may be interested in comparing brands based on their sugar, calories, and carbs. 
+
+```{r Normalize Data}
+# At this point, there should be 73 cereals with complete data
+# on 9 variables. The variables have meaningful magnitude but on
+# various scales of measurement (some imprecise, some ordinal).
+# Employ min-max normalization prior to analysis
+minmaxnorm <- function(x) { return ((x - min(x)) / (max(x) - min(x))) }
+minmaxdf <- as.data.frame(lapply(cerealswork[,3:11], FUN = minmaxnorm))
+
+head(minmaxdf)
+str(minmaxdf)
+
+```
+***Visualizations***
+# Consider visualization methods such as metric multidimensional 
+# scaling, nonmetric multidimensional scaling, biplots from 
+# principal components, t-SNE, dendrograms from hierarchical 
+# clustering, checkerboard plots from biclustering 
+# (rows for cereals, columns for nutrition variables), 
+# and self-organizing maps. Consider combinations of methods, 
+# such as t-SNE plotting of groups of cereals identified by 
+# K-means cluster analysis with a unique color for each cluster.
+
+From G Search:
+PCA assumes that the directions with the largest variances are the most “important” (i.e, the most principal). In the figure below, the PC1 axis is the first principal direction along which the samples show the largest variation. The PC2 axis is the second most important direction and it is orthogonal to the PC1 axis.
+
+Loadings are interpreted as the coefficients of the linear combination of the initial variables from which the principal components are constructed. From a numerical point of view, the loadings are equal to the coordinates of the variables divided by the square root of the eigenvalue associated with the component.
+
+```{r Screeplot}
+#DATA VISUALIZATION----
+
+library(psych)
+library(lessR)
+library(ggpubr)
+library(factoextra)
+
+#FACTOR ANALYSIS----
+fa.parallel(minmaxdf, fa="both", n.iter=1000, show.legend=TRUE,main="Scree plot with parallel analysis")
+```
+
+```{r PCA}
+#PCA----
+#.rowNamesDF
+.rowNamesDF(minmaxdf,make.names=TRUE) <-cerealswork$name
+
+my.pca <- princomp(minmaxdf, scale. = TRUE)
+summary(my.pca)
+
+#view loadings
+my.pca$loadings
+
+
+```
+```{r Screeplot 2}
+fviz_eig(my.pca)
+```
+
+```{r PCA - Visualization}
+
+fviz_pca_var(my.pca, 
+             col.var = "contrib", 
+             repel = TRUE, 
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             title = "Principal Component Analysis",
+             legend.title = "Contribution"
+             )
+
+biplot(my.pca, cex = .5,
+       main="PCA Biplot")
+
+```
+
+
+```{r Factor Analysis}
+
+#Factor Analysis----
+#No Rotation, 3 factors
+fa1<-fa(minmaxdf, nfactors=4, rotate="none", fm="pa")
+summary(fa1)
+fa1$loadings
+```
+```{r Heatmap and SemPaths}
+library(gplots)
+library(RColorBrewer)
+library(semPlot)
+
+heatmap.2(fa1$loadings,
+          col=brewer.pal(9,"Blues"), trace="none", key=FALSE,
+          Colv=FALSE, 
+          cexCol = 1.2, cexRow = .7,
+          dend="none", lwid=c(0.1,1), lhei=c(0.1,2)
+          )
+
+semPaths(fa1$loadings, what="est", residuals=FALSE,
+         cut=0.5, posCol=c("white","darkgreen"), negCol=c("white","red"),
+         edge.label.cex=1, nCharNodes=8, sizeMan = 7)
+```
+
+
+```{r Dimensionality Reduction}
+minmaxdf_reduced <- minmaxdf[,!(names(minmaxdf) %in% c("sodium","vitamins"))]
+minmaxdf_reduced
+```
+
+Using the reduced dataset produces an rsquare of 0.59, avg sillhouette 0.35
+where using the regular normalized dataset produces rquare of 0.46, silhouette 0.43
+
+```{r Kmeans}
+#######################################################
+### Create a Kmeans with 4 clusters with derived data #
+#######################################################
+set.seed(10)
+
+clusterresults <- kmeans(x = minmaxdf_reduced,centers = 4)
+names(clusterresults)
+
+library(useful)
+plot(clusterresults, data=minmaxdf_reduced)
+
+dev.off()
+
+#Between Sum of Squares / Total Sum of Squares Goodness to Fit 
+#K-Means
+rsquare <- clusterresults$betweenss/clusterresults$totss
+rsquare
+
+#K-Means, 3 clusters 
+
+#MAC CAN'T HANDLET HIS
+#plot(clusterresults, data = workdata_filtered_norm)
+
+library(cluster)
+dissE <- daisy(minmaxdf)
+names(dissE)
+dE2   <- dissE^2
+
+sk2   <- silhouette(clusterresults$cluster, dE2)
+str(sk2)
+plot(sk2)
+
+```
+
+```{r  Plot kmeans}
+#clusterresults cluster as dataframe
+newdf <- as.data.frame(clusterresults$cluster)
+pcadf <- as.data.frame(my.pca$scores)
+
+write.csv(newdf, file = "clusterresults.csv")
+write.csv(pcadf, file = "pca.csv")
+
+dim(newdf)
+dim(pcadf)
+str(pcadf)
+
+combdata <- cbind(newdf,pcadf)
+head(combdata)
+
+#xyplot of the 3 groups
+library(lattice)
+xyplot(Comp.2 ~ Comp.1, combdata, groups = clusterresults$cluster, pch= 15, main="K-means Clusters",xlab="Principal Component 1",ylab="Principal Component 2")
+
+library(rgl)
+bg3d("lightgrey")
+
+#can see that within subgroups there is a split based on the third component, carbs 
+plot3d(combdata$Comp.1,combdata$Comp.2,combdata$Comp.3,
+       main = "K-Means Clusters Visualized on First 3 Principal Components",
+       col=as.integer(cerealswork$manufacturer),
+       size=4,
+       radius=4)
+
+?plot3d
+text3d(combdata$Comp.1,combdata$Comp.2,combdata$Comp.3,rownames(minmaxdf2),color=clusterresults$cluster)
+
+```
+
+***Aggregate Data***
+```{r Combined Data - Cluster Profiling}
+################################################################
+### Create a dataset with the original data with the cluster info----
+### This will be useful for creating profiles for the clusters----
+###############################################################
+
+#cluster profiles + prepared data
+combdata2 <- cbind(newdf, cerealswork)
+
+#Rename column
+require(reshape)
+combdata2 <- rename(combdata2, c("clusterresults$cluster"="cluster"))
+names(combdata2)
+
+#Tabling Combdata2----
+
+#Cluster 1 only has 3 observations
+#Cluster 2 has 39 (largest group)
+#Cluster 3 has 31
+
+#table <- table(combdata2$cluster, combdata2$manufacturername)
+#prop.table(table)
+
+library(stats)
+table_xtabs <- xtabs(~manufacturername + cluster, data=combdata2)
+addmargins(table_xtabs)
+
+prop_table_xtabs <- round((table_xtabs),2)
+proptablextabsmargins <- as.data.frame.matrix(addmargins(prop_table_xtabs))
+proptablextabsmargins$prop.g1 <- round(proptablextabsmargins$`1`/proptablextabsmargins$Sum,2)
+proptablextabsmargins$prop.g2 <- round(proptablextabsmargins$`2`/proptablextabsmargins$Sum,2)
+proptablextabsmargins$prop.g3 <- round(proptablextabsmargins$`3`/proptablextabsmargins$Sum,2)
+proptablextabsmargins$prop.g4 <- round(proptablextabsmargins$`4`/proptablextabsmargins$Sum,2)
+
+proptablextabsmargins
+
+write.csv(proptablextabsmargins, file = "1_kmeans_proportion.csv")
+
+#Aggregate columns by group----
+#It is clear that cluster 1 is the niche healthy group
+#Cluster 2 is less healthy, sweeter 
+#Cluster 3 is healthy majority 
+
+output_clusteraggregates <- aggregate(combdata2,by=list(byvar=combdata2$cluster), mean)
+output_clusteraggregates
+
+write.csv(output_clusteraggregates, file = "2_kmeans_mean.csv")
+
+```
+
+
+```{r t-SNE}
+#default tsne
+library(Rtsne)
+set.seed(89)
+
+tsne <- Rtsne(minmaxdf, dims = 2, perplexity = 10, verbose = TRUE, max_iiter=1000, learning=1000, check_duplicates=FALSE)
+
+#visualizing
+colors = rainbow(length(unique(clusterresults$cluster)))
+names(colors) = unique(clusterresults$cluster)
+
+par(mgp=c(2.5,1,0))
+
+plot(tsne$Y, t='n', main = 'tSNE', xlab = 'tSNE dimension 1', ylab = 'tSNE dimension 2', cex.main = 2, cex.lab = 1.5)
+
+text(tsne$Y, labels = combdata2$manufacturer, col = colors[clusterresults$cluster], cex=1, size=1)
+?text
+#t-SNE affirms that there are three distinct groups, found through kMeans
+```
+
+```{r 2-D MDS using minmaxdf2}
+#MDS----
+
+minmaxdf2 <- minmaxdf
+
+#.rowNamesDF
+.rowNamesDF(minmaxdf2,make.names=TRUE) <-cerealswork$name
+
+d1 <- dist(minmaxdf2)
+
+#cmdscale(), fit MDS 
+?cmdscale
+fit <- cmdscale(d1, eig=TRUE, k=4)
+
+#plot solution
+x <- fit$points[,1]
+y <- fit$points[,2]
+
+plot(x, y, xlab="Dimension 1", ylab="Dimension 2",
+     main="Metric MDS", type="n")
+text(x, y, labels = row.names(minmaxdf2), cex=.8)
+
+
+```
+
+```{r 3-D MDS using minmaxdf2}
+minmaxdf2 <- minmaxdf
+
+#.rowNamesDF
+.rowNamesDF(minmaxdf2,make.names=TRUE) <-cerealswork$name
+
+d1 <- dist(minmaxdf2)
+
+#cmdscale(), fit MDS 
+?cmdscale
+fit <- cmdscale(d1, eig=TRUE, k=4)
+
+#goodness of fit
+fit$GOF
+
+#plot solution
+x <- fit$points[,1]
+y <- fit$points[,2]
+z <- fit$points[,3]
+
+#3D
+#https://stackoverflow.com/questions/52590410/display-point-labels-in-scatter3d
+
+bg3d("lightgrey")
+
+plot3d(fit$points[,1],fit$points[,2],fit$points[,3],
+       main = "Multidimensional Scaling (3D)")
+text3d(fit$points[,1],fit$points[,2],fit$points[,3],rownames(minmaxdf2),color=as.integer(cerealswork$manufacturer))
+
+#play3d(spin3d(axis=c(0,1,1),rpm=3))
+
+```
+
+```{r MDS - look at eigenvalues, needs around 9 for a good fitting model}
+#https://stats.stackexchange.com/questions/22019/how-to-calculate-the-r-squared-value-and-assess-the-model-fit-in-multidimensiona
+
+r <- cmdscale(d1, eig=TRUE)
+
+plot(cumsum(r$eig) / sum(r$eig),
+     type="h", lwd=5, las=1, xlab="Number of dimensions", ylab=expression(R^2))
+
+plot(r$eig, type="h", lwd=5, las=1, xlab="Number of dimensions", ylab="Eigenvalues")
+```
+
+
+
+```{r Checkerboard plot and biclustering}
+#BICLUSTERING----
+#blockcluster----
+library(blockcluster)
+
+minmaxdf3 <- as.matrix(minmaxdf_reduced)
+
+set.seed(1)
+?coclusterContinuous
+blockobject <- coclusterContinuous(minmaxdf3, nbcocluster=c(2,3))
+
+summary(blockobject)
+
+plot(blockobject)
+#biclust----
+library(biclust)
+x <- discretize(minmaxdf3, nof=3,quant=TRUE)
+set.seed(2)
+XMotifs <- biclust(x=as.matrix(x), method=BCXmotifs(),ns=5,nd=50,sd=3,alpha=0.01,number=100)
+
+summary(XMotifs)
+```
+
+```{r Fuzzy Clustering}
+#Fuzzy Clustering----
+#https://www.datanovia.com/en/lessons/fuzzy-clustering-essentials/
+
+#https://www.datanovia.com/en/lessons/fuzzy-clustering-essentials/cmeans-r-function-compute-fuzzy-clustering/
+
+library(e1071)
+set.seed(2)
+cm <- cmeans(minmaxdf_reduced, centers=2, iter.max=100, dist="euclidean",m=2)
+
+cm$membership
+write.csv(cm$membership, file = "3_fuzzymembership.csv")
+
+#Visualize Correlation
+corrplot(cm$membership, is.corr=FALSE,tl.cex = .6, tl.col = 'darkblue')
+?fviz_cluster
+
+#plot clusters
+fviz_cluster(list(data = minmaxdf, cluster=cm$cluster),
+             ellipse.type="norm",
+             ellipse.level=0.8,
+             palette="jco",
+             ggtheme=theme_minimal())
+```
+
+
+```{r Fuzzy Grouping}
+fuzzy <- as.data.frame(cm$membership)
+
+fuzzy$fuzzygroup <- ifelse(fuzzy$`1` > 0.7,"1",
+                      ifelse(fuzzy$`2` > 0.7,2,3))
+fuzzy
+
+table(fuzzy$fuzzygroup)
+
+round(prop.table(table(fuzzy$fuzzygroup)),2)
+
+combdata3 <- cbind(fuzzy$fuzzygroup,cerealswork)
+
+colnames(combdata3)[1] <- "group"
+
+output_clusteraggregates_2 <- aggregate(combdata3[4:12],by=list(byvar=combdata3$group), mean)
+output_clusteraggregates_2
+
+write.csv(output_clusteraggregates_2, file = "5_fuzzy_mean.csv")
+
+```
+
+```{r Fuzzy Proportion Table}
+
+#fuzzy table proportions 
+
+table_xtabs_fuzzy <- xtabs(~manufacturername + group, data=combdata3)
+
+#as.data.frame.matrix 
+fuzzy <- as.data.frame.matrix(addmargins(table_xtabs_fuzzy))
+
+fuzzy$prop.g1 <- round(fuzzy$`1`/fuzzy$Sum,2)
+fuzzy$prop.g2 <- round(fuzzy$`2`/fuzzy$Sum,2)
+fuzzy$prop.g3 <- round(fuzzy$`3`/fuzzy$Sum,2)
+fuzzy
+
+write.csv(fuzzy, file = "4_fuzzy_proportion.csv")
+
+```
+
+
+

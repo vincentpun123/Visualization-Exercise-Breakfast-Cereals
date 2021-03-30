@@ -1,0 +1,28 @@
+cereals Cereal nutrition data
+
+Description
+
+This dataset summarizes 77 different brands of breakfast cereals, including calories, proteins, fats,
+and so on, and gives a ’rating’ that indicates the overall nutritional value of the cereal.
+
+Format
+
+A data frame with 77 rows and 13 variables:
+
+Cereal.name character Cereal name
+Manufacturer factor Cereal manufacturer (letter code)
+Cold.or.Hot factor ’C’ or ’H’
+calories integer
+protein integer
+fat integer
+sodium integer
+fiber double
+carbo double
+sugars integer
+potass integer
+vitamins integer
+rating double Health rating of the cereal (unknown calculation method).
+
+Source
+
+<https://dasl.datadescription.com/datafile/cereals/> (Originally at Statlib CMU).
